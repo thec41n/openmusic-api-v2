@@ -14,6 +14,12 @@ import UsersValidator from './validator/users/index.js';
 import authentications from './api/authentications/index.js';
 import AuthenticationService from './services/postgresql/AuthenticationService.js';
 import AuthenticationsValidator from './validator/authentications/index.js';
+import playlists from './api/playlists/index.js';
+import PlaylistService from './services/postgresql/PlaylistService.js';
+import PlaylistsValidator from './validator/playlists/index.js';
+import AuthorizationError from './exceptions/AuthorizationError.js';
+
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
@@ -32,6 +38,7 @@ const init = async () => {
   const songService = new SongService();
   const userService = new UserService();
   const authenticationService = new AuthenticationService();
+  const playlistService = new PlaylistService();
 
   await server.register([
     {
@@ -64,32 +71,118 @@ const init = async () => {
         validator: AuthenticationsValidator,
       },
     },
+    {
+      plugin: playlists,
+      options: {
+        service: playlistService,
+        validator: PlaylistsValidator,
+      },
+    },
   ]);
+
+  server.ext('onPreHandler', (request, h) => {
+    const protectedPaths = [
+      '/playlists',
+      '/playlists/{id}',
+      '/playlists/{id}/songs',
+      '/collaborations',
+      '/playlists/{id}/activities',
+    ];
+
+    const isProtected = protectedPaths.some((path) => {
+      return request.route && request.route.path === path;
+    });
+
+    if (isProtected) {
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        throw new AuthorizationError('Missing authentication');
+      }
+
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_KEY);
+
+        if (
+          !decoded ||
+          typeof decoded.userId !== 'string' ||
+          decoded.userId.trim() === ''
+        ) {
+          throw new AuthorizationError(
+            'Invalid Access Token: userId not found in token'
+          );
+        }
+
+        request.auth = {
+          credentials: {
+            id: decoded.userId,
+          },
+        };
+      } catch (error) {
+        console.error(
+          'Error verifying token in manual middleware:',
+          error.message
+        );
+
+        if (error.name === 'TokenExpiredError') {
+          throw new AuthorizationError('Access Token Expired');
+        }
+        if (error.name === 'JsonWebTokenError') {
+          throw new AuthorizationError('Invalid Access Token');
+        }
+        throw new AuthorizationError('Failed to authenticate token');
+      }
+    }
+    return h.continue;
+  });
 
   server.ext('onPreResponse', (request, h) => {
     const { response } = request;
-    if (response instanceof Error) {
-      if (response instanceof ClientError) {
-        const newResponse = h.response({
-          status: 'fail',
-          message: response.message,
-        });
-        newResponse.code(response.statusCode);
-        return newResponse;
-      }
 
-      if (!response.isServer) {
-        return h.continue;
-      }
-
+    if (response instanceof AuthorizationError) {
       const newResponse = h.response({
-        status: 'error',
-        message: 'Maaf, terjadi kegagalan pada server kami.',
+        statusCode: response.statusCode,
+        status: 'fail',
+        message: response.message,
+        error: 'Forbidden',
       });
-      newResponse.code(500);
-      console.error(response);
+      newResponse.code(response.statusCode);
       return newResponse;
     }
+
+    if (response instanceof ClientError) {
+      const newResponse = h.response({
+        statusCode: response.statusCode,
+        status: 'fail',
+        message: response.message,
+        error: response.statusCode === 404 ? 'Not Found' : 'Bad Request',
+      });
+      newResponse.code(response.statusCode);
+      return newResponse;
+    }
+
+    if (!response.isServer && response.output && response.output.statusCode) {
+      const newResponse = h.response({
+        statusCode: response.output.statusCode,
+        status: 'fail',
+        message: response.output.payload.message || 'Resource not found',
+        error: response.output.payload.error,
+      });
+      newResponse.code(response.output.statusCode);
+      return newResponse;
+    }
+
+    if (response instanceof Error) {
+      const newResponse = h.response({
+        statusCode: 500,
+        status: 'error',
+        message: 'Maaf, terjadi kegagalan pada server kami.',
+        error: 'Internal Server Error',
+      });
+      newResponse.code(500);
+      return newResponse;
+    }
+
     return h.continue;
   });
 

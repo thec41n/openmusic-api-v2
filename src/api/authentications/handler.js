@@ -50,8 +50,7 @@ class AuthenticationsHandler {
         status: 'success',
         data: { accessToken },
       });
-    } catch (error) {
-      console.error('Verifikasi Refresh Token GAGAL (jsonwebtoken):', error.message);
+    } catch {
       throw new InvariantError('Refresh token tidak valid');
     }
   }
