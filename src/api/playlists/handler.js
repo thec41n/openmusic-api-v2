@@ -36,12 +36,19 @@ class PlaylistsHandler {
 
   async postSongToPlaylistHandler(request, h) {
     this._validator.validatePostPlaylistSongPayload(request.payload);
+
     const { playlistId } = request.params;
     const { songId } = request.payload;
     const { id: credentialId } = request.auth.credentials;
-    await this._service.verifyPlaylistOwner(playlistId, credentialId);
+
+    await this._service.verifyPlaylistAccess(playlistId, credentialId); // <-- INI YANG BENAR
+
     await this._service.addSongToPlaylist({ playlistId, songId });
-    const response = h.response({ status: 'success', message: 'Lagu berhasil ditambahkan ke playlist', });
+
+    const response = h.response({
+      status: 'success',
+      message: 'Lagu berhasil ditambahkan ke playlist',
+    });
     response.code(201);
     return response;
   }
@@ -49,18 +56,32 @@ class PlaylistsHandler {
   async getSongsInPlaylistHandler(request) {
     const { playlistId } = request.params;
     const { id: credentialId } = request.auth.credentials;
-    await this._service.verifyPlaylistOwner(playlistId, credentialId);
+
+    await this._service.verifyPlaylistAccess(playlistId, credentialId); // <-- INI YANG BENAR
+
     const playlist = await this._service.getSongsInPlaylist(playlistId);
-    return { status: 'success', data: { playlist }, };
+
+    return {
+      status: 'success',
+      data: {
+        playlist,
+      },
+    };
   }
 
-  async deleteSongFromPlaylistHandler(request) {
+  async deleteSongFromPlaylistHandler(request, h) {
     const { playlistId } = request.params;
     const { songId } = request.payload;
     const { id: credentialId } = request.auth.credentials;
-    await this._service.verifyPlaylistOwner(playlistId, credentialId);
+
+    await this._service.verifyPlaylistAccess(playlistId, credentialId); // <-- INI YANG BENAR
+
     await this._service.deleteSongFromPlaylist(playlistId, songId);
-    return { status: 'success', message: 'Lagu berhasil dihapus dari playlist', };
+
+    return h.response({
+      status: 'success',
+      message: 'Lagu berhasil dihapus dari playlist',
+    });
   }
 }
 

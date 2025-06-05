@@ -4,10 +4,22 @@ const { Pool } = pkg;
 import InvariantError from '../../exceptions/InvariantError.js';
 import NotFoundError from '../../exceptions/NotFoundError.js';
 import AuthorizationError from '../../exceptions/AuthorizationError.js';
+import CollaborationService from './CollaborationService.js';
 
 class PlaylistService {
   constructor() {
     this._pool = new Pool();
+    this._collaborationService = new CollaborationService();
+
+    this.addPlaylist = this.addPlaylist.bind(this);
+    this.getPlaylists = this.getPlaylists.bind(this);
+    this.deletePlaylistById = this.deletePlaylistById.bind(this);
+    this.verifyPlaylistOwner = this.verifyPlaylistOwner.bind(this);
+    this.verifyPlaylistAccess = this.verifyPlaylistAccess.bind(this);
+    this.addSongToPlaylist = this.addSongToPlaylist.bind(this);
+    this.getSongsInPlaylist = this.getSongsInPlaylist.bind(this);
+    this.deleteSongFromPlaylist = this.deleteSongFromPlaylist.bind(this);
+    this.verifySongExists = this.verifySongExists.bind(this);
   }
 
   async addPlaylist({ name, owner }) {
@@ -30,10 +42,11 @@ class PlaylistService {
   async getPlaylists(owner) {
     const query = {
       text: `
-        SELECT playlists.id, playlists.name, users.username 
+        SELECT DISTINCT ON (playlists.id) playlists.id, playlists.name, users.username 
         FROM playlists
         LEFT JOIN users ON playlists.owner = users.id
-        WHERE playlists.owner = $1`,
+        LEFT JOIN collaborations ON collaborations.playlist_id = playlists.id
+        WHERE playlists.owner = $1 OR collaborations.user_id = $1`,
       values: [owner],
     };
     const result = await this._pool.query(query);
@@ -41,15 +54,36 @@ class PlaylistService {
   }
 
   async deletePlaylistById(id, owner) {
+    await this.verifyPlaylistOwner(id, owner);
+
     const query = {
-      text: 'DELETE FROM playlists WHERE id = $1 AND owner = $2 RETURNING id',
-      values: [id, owner],
+      text: 'DELETE FROM playlists WHERE id = $1 RETURNING id',
+      values: [id],
     };
 
     const result = await this._pool.query(query);
 
     if (!result.rowCount) {
-      throw new NotFoundError('Playlist tidak ditemukan'); 
+      throw new NotFoundError('Playlist gagal dihapus. Id tidak ditemukan');
+    }
+  }
+
+  async verifyPlaylistAccess(playlistId, userId) {
+    try {
+      await this.verifyPlaylistOwner(playlistId, userId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      if (error instanceof AuthorizationError) {
+        try {
+          await this._collaborationService.verifyCollaborator(playlistId, userId);
+        } catch (collaborationError) { // Jika user juga BUKAN kolaborator
+          throw new AuthorizationError('Anda tidak berhak mengakses resource ini'); // Lempar error final
+        }
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -103,7 +137,7 @@ class PlaylistService {
               'id', songs.id,
               'title', songs.title,
               'performer', songs.performer
-            )
+            ) ORDER BY songs.title -- Tambahkan ORDER BY untuk konsistensi
           ) AS songs
         FROM playlists
         LEFT JOIN users ON playlists.owner = users.id
@@ -121,7 +155,7 @@ class PlaylistService {
     }
 
     const playlist = result.rows[0];
-    if (!playlist.songs[0].id) {
+    if (playlist.songs.length > 0 && playlist.songs[0].id === null) {
       playlist.songs = [];
     }
 

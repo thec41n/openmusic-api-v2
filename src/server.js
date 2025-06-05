@@ -17,6 +17,10 @@ import playlists from './api/playlists/index.js';
 import PlaylistService from './services/postgresql/PlaylistService.js';
 import PlaylistsValidator from './validator/playlists/index.js';
 import AuthorizationError from './exceptions/AuthorizationError.js';
+import CollaborationsValidator from './validator/collaborations/index.js';
+import collaborations from './api/collaborations/index.js';
+import CollaborationService from './services/postgresql/CollaborationService.js';
+
 
 import jwt from 'jsonwebtoken';
 
@@ -38,6 +42,7 @@ const init = async () => {
   const userService = new UserService();
   const authenticationService = new AuthenticationService();
   const playlistService = new PlaylistService();
+  const collaborationService = new CollaborationService();
 
   await server.register([
     {
@@ -75,6 +80,15 @@ const init = async () => {
       options: {
         service: playlistService,
         validator: PlaylistsValidator,
+      },
+    },
+    {
+      plugin: collaborations,
+      options: {
+        collaborationService: collaborationService,
+        playlistService: playlistService,
+        userService: userService,
+        validator: CollaborationsValidator,
       },
     },
   ]);
