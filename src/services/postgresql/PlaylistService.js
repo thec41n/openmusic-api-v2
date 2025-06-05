@@ -78,8 +78,8 @@ class PlaylistService {
       if (error instanceof AuthorizationError) {
         try {
           await this._collaborationService.verifyCollaborator(playlistId, userId);
-        } catch (collaborationError) { // Jika user juga BUKAN kolaborator
-          throw new AuthorizationError('Anda tidak berhak mengakses resource ini'); // Lempar error final
+        } catch {
+          throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
         }
       } else {
         throw error;

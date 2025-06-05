@@ -1,5 +1,3 @@
-import AuthorizationError from '../../exceptions/AuthorizationError.js';
-
 class CollaborationsHandler {
   constructor(collaborationService, playlistService, userService, validator) {
     this._collaborationService = collaborationService;
