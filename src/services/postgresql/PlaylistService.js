@@ -5,11 +5,13 @@ import InvariantError from '../../exceptions/InvariantError.js';
 import NotFoundError from '../../exceptions/NotFoundError.js';
 import AuthorizationError from '../../exceptions/AuthorizationError.js';
 import CollaborationService from './CollaborationService.js';
+import ActivitiesService from './ActivitiesService.js';
 
 class PlaylistService {
   constructor() {
     this._pool = new Pool();
     this._collaborationService = new CollaborationService();
+    this._activitiesService = new ActivitiesService();
 
     this.addPlaylist = this.addPlaylist.bind(this);
     this.getPlaylists = this.getPlaylists.bind(this);
@@ -105,7 +107,7 @@ class PlaylistService {
     }
   }
 
-  async addSongToPlaylist({ playlistId, songId }) {
+  async addSongToPlaylist({ playlistId, songId, userId }) {
     await this.verifySongExists(songId);
 
     const id = `playlist_song-${nanoid(16)}`;
@@ -117,6 +119,12 @@ class PlaylistService {
 
     try {
       await this._pool.query(query);
+      await this._activitiesService.addPlaylistActivity({
+        playlistId,
+        songId,
+        userId,
+        action: 'add',
+      });
     } catch (error) {
       if (error.code === '23505') {
         throw new InvariantError('Lagu sudah ada di dalam playlist ini.');
@@ -162,7 +170,7 @@ class PlaylistService {
     return playlist;
   }
 
-  async deleteSongFromPlaylist(playlistId, songId) {
+  async deleteSongFromPlaylist(playlistId, songId, userId) {
     const query = {
       text: 'DELETE FROM playlist_songs WHERE playlist_id = $1 AND song_id = $2 RETURNING id',
       values: [playlistId, songId],
@@ -173,6 +181,13 @@ class PlaylistService {
     if (!result.rowCount) {
       throw new NotFoundError('Lagu tidak ditemukan di playlist ini');
     }
+
+    await this._activitiesService.addPlaylistActivity({
+      playlistId,
+      songId,
+      userId,
+      action: 'delete',
+    });
   }
 
   async verifySongExists(songId) {

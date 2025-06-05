@@ -27,5 +27,10 @@ const routes = (handler) => [
     path: '/playlists/{playlistId}/songs',
     handler: handler.deleteSongFromPlaylistHandler,
   },
+  {
+    method: 'GET',
+    path: '/playlists/{playlistId}/activities',
+    handler: handler.getPlaylistActivitiesHandler,
+  },
 ];
 export default routes;
