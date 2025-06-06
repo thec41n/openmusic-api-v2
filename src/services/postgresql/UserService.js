@@ -4,6 +4,7 @@ const { Pool } = pkg;
 import bcrypt from 'bcrypt';
 import InvariantError from '../../exceptions/InvariantError.js';
 import NotFoundError from '../../exceptions/NotFoundError.js';
+import AuthorizationError from '../../exceptions/AuthorizationError.js';
 
 class UserService {
   constructor() {
@@ -64,7 +65,7 @@ class UserService {
     const result = await this._pool.query(query);
 
     if (!result.rowCount) {
-      throw new InvariantError('Kredensial yang Anda berikan salah');
+      throw new AuthorizationError('Kredensial yang Anda berikan salah');
     }
 
     const { id, password: hashedPassword } = result.rows[0];
@@ -72,7 +73,7 @@ class UserService {
     const match = await bcrypt.compare(password, hashedPassword);
 
     if (!match) {
-      throw new InvariantError('Kredensial yang Anda berikan salah');
+      throw new AuthorizationError('Kredensial yang Anda berikan salah');
     }
 
     return id;
