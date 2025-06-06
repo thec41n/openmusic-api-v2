@@ -99,7 +99,7 @@ const init = async () => {
     '/playlists/{id}',
     '/playlists/{playlistId}/songs',
     '/collaborations',
-    '/playlists/{id}/activities',
+    '/playlists/{playlistId}/activities',
   ];
 
   const isProtected = protectedPaths.some(path => {
@@ -155,7 +155,8 @@ const init = async () => {
       response.message === 'Kredensial yang Anda berikan salah' ||
       response.message === 'Access Token Expired' ||
       response.message === 'Invalid Access Token: userId not found in token' ||
-      response.message === 'Failed to authenticate token'
+      response.message === 'Failed to authenticate token' ||
+      response.message === 'Missing or invalid credentials for accessing activities'
     ) {
       statusCode = 401;
       errorType = 'Unauthorized';
