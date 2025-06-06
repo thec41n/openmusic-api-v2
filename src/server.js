@@ -149,7 +149,11 @@ const init = async () => {
     let statusCode = response.statusCode;
     let errorType = 'Forbidden';
 
-    if (response.message === 'Missing authentication' || response.message === 'Invalid Access Token') {
+    if (
+      response.message === 'Missing authentication' ||
+      response.message === 'Invalid Access Token' ||
+      response.message === 'Kredensial yang Anda berikan salah'
+    ) {
       statusCode = 401;
       errorType = 'Unauthorized';
     }
