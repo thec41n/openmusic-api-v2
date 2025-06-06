@@ -90,6 +90,7 @@ class PlaylistsHandler {
   }
 
   async deleteSongFromPlaylistHandler(request, h) {
+    this._validator.validatePostPlaylistSongPayload(request.payload);
     const { playlistId } = request.params;
     const { songId } = request.payload;
     const { id: credentialId } = request.auth.credentials;
