@@ -1,8 +1,6 @@
 import { nanoid } from 'nanoid';
 import pkg from 'pg';
 const { Pool } = pkg;
-import InvariantError from '../../exceptions/InvariantError.js';
-import NotFoundError from '../../exceptions/NotFoundError.js';
 
 class ActivitiesService {
   constructor() {
