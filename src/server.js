@@ -152,7 +152,10 @@ const init = async () => {
     if (
       response.message === 'Missing authentication' ||
       response.message === 'Invalid Access Token' ||
-      response.message === 'Kredensial yang Anda berikan salah'
+      response.message === 'Kredensial yang Anda berikan salah' ||
+      response.message === 'Access Token Expired' ||
+      response.message === 'Invalid Access Token: userId not found in token' ||
+      response.message === 'Failed to authenticate token'
     ) {
       statusCode = 401;
       errorType = 'Unauthorized';
