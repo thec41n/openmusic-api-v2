@@ -77,7 +77,7 @@ class PlaylistsHandler {
     const { playlistId } = request.params;
     const { id: credentialId } = request.auth.credentials;
 
-    await this._service.verifyPlaylistAccess(playlistId, credentialId); // <-- INI YANG BENAR
+    await this._service.verifyPlaylistAccess(playlistId, credentialId);
 
     const playlist = await this._service.getSongsInPlaylist(playlistId);
 
